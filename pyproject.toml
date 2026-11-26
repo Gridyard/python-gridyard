@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gridyard"
-version = "0.0.2"
+version = "0.1.0"
 description = "Async Python client for the local API of gridyard devices"
 readme = "README.md"
 license = "Apache-2.0"
