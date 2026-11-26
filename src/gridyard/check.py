@@ -1,4 +1,4 @@
-"""gridyard-check: open a session with a device and print device-info and state.
+"""gridyard-check: open a session with a device and print the responses of endpoints.
 
 The setup code is read from a file so that it does not end up in the shell history.
 """
@@ -13,18 +13,18 @@ import aiohttp
 
 from .session import DeviceSession
 
-ENDPOINTS = ("device-info", "state")
+DEFAULT_ENDPOINTS = ["device-info", "state"]
 REQUEST = b'{"api":1}'
 
 
-async def check(host: str, port: int, setup_code: str) -> None:
-    """Set up a session, then read and print each endpoint in ENDPOINTS."""
+async def check(host: str, port: int, setup_code: str, endpoints: list[str]) -> None:
+    """Set up a session, then read and print each endpoint."""
     async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as websession:
         session = DeviceSession(websession, host, setup_code, port=port)
         started = time.monotonic()
         await session.connect()
         print(f"session: {time.monotonic() - started:.2f} s")  # noqa: T201
-        for endpoint in ENDPOINTS:
+        for endpoint in endpoints:
             started = time.monotonic()
             response = await session.request(endpoint, REQUEST)
             print(f"{endpoint}: {time.monotonic() - started:.2f} s")  # noqa: T201
@@ -46,6 +46,14 @@ def main() -> None:
         type=Path,
         help="file with the 12-character setup code",
     )
+    parser.add_argument(
+        "--endpoint",
+        action="append",
+        dest="endpoints",
+        help="endpoint to read, repeatable (default: device-info and state; "
+        "the setup window has no state)",
+    )
     args = parser.parse_args()
     setup_code = args.code_file.read_text(encoding="utf-8").strip()
-    asyncio.run(check(args.host, args.port, setup_code))
+    endpoints = args.endpoints or DEFAULT_ENDPOINTS
+    asyncio.run(check(args.host, args.port, setup_code, endpoints))
