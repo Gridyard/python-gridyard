@@ -14,11 +14,19 @@ from cryptography.exceptions import InvalidTag
 from google.protobuf.message import DecodeError
 from yarl import URL
 
-from .exceptions import CannotConnect, GridyardError, InvalidAuth, SessionLost
+from .exceptions import (
+    ApiUnsupported,
+    CannotConnect,
+    GridyardError,
+    InvalidAuth,
+    SessionLost,
+)
 from .security2 import Security2
 
 USERNAME = "wifiprov"
 SECURITY_SCHEME = 2
+# Version of the local API in proto-ver (gridyard.ver), as text.
+API_VERSION = "1"
 REQUEST_TIMEOUT_S = 10.0
 # Headers of esp_prov's HTTP transport (network_provisioning 1.3.1,
 # tool/esp_prov/transport/transport_http.py).
@@ -109,7 +117,7 @@ class DeviceSession:
         except _TransportError as err:
             raise CannotConnect(str(err)) from err
         security = Security2(
-            _security_patch_version(versions), USERNAME, self._setup_code, verbose=False
+            _check_versions(versions), USERNAME, self._setup_code, verbose=False
         )
 
         # SRP6a takes tens of milliseconds on a laptop and longer on small hosts.
@@ -177,13 +185,20 @@ class DeviceSession:
         return body
 
 
-def _security_patch_version(response: bytes) -> int:
-    """Check the security scheme in a proto-ver response and return sec_patch_ver."""
+def _check_versions(response: bytes) -> int:
+    """Check API and security scheme in a proto-ver response; return sec_patch_ver.
+
+    Firmware before the local API contract has no gridyard entry and no local API.
+    """
     try:
         versions = json.loads(response)
     except ValueError as err:
         msg = f"proto-ver: response is not JSON: {response[:64]!r}"
         raise GridyardError(msg) from err
+    api_version = versions.get("gridyard", {}).get("ver")
+    if api_version != API_VERSION:
+        msg = f"proto-ver: local API {api_version}, expected {API_VERSION}"
+        raise ApiUnsupported(msg)
     prov = versions["prov"]
     if prov["sec_ver"] != SECURITY_SCHEME:
         msg = (

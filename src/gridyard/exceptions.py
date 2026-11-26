@@ -15,3 +15,91 @@ class InvalidAuth(GridyardError):
 
 class SessionLost(GridyardError):
     """The session broke during a request and the request was not completed."""
+
+
+class DeviceError(GridyardError):
+    """The device answered with an error code of the local API contract."""
+
+    code = ""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        retryable: bool = False,
+        retry_after_s: int | None = None,
+    ) -> None:
+        """Store the retry hints of the error response (JSON endpoints only)."""
+        super().__init__(message)
+        self.retryable = retryable
+        self.retry_after_s = retry_after_s
+
+
+class ApiUnsupported(DeviceError):
+    """The device speaks another version of the local API, or none."""
+
+    code = "API_UNSUPPORTED"
+
+
+class ConfigInvalid(DeviceError):
+    """A field is missing or has the wrong format."""
+
+    code = "CONFIG_INVALID"
+
+
+class ProfileUnknown(DeviceError):
+    """The profile is not in the catalog of the device."""
+
+    code = "PROFILE_UNKNOWN"
+
+
+class StorageFailed(DeviceError):
+    """The device could not store the value."""
+
+    code = "STORAGE_FAILED"
+
+
+class AuthFailed(DeviceError):
+    """The update token is missing, wrong, expired or used."""
+
+    code = "AUTH_FAILED"
+
+
+class UpdateRejected(DeviceError):
+    """The device does not accept the update."""
+
+    code = "UPDATE_REJECTED"
+
+
+class UpdateFailed(DeviceError):
+    """The update failed or another update runs."""
+
+    code = "UPDATE_FAILED"
+
+
+DEVICE_ERRORS: dict[str, type[DeviceError]] = {
+    error.code: error
+    for error in (
+        ApiUnsupported,
+        ConfigInvalid,
+        ProfileUnknown,
+        StorageFailed,
+        AuthFailed,
+        UpdateRejected,
+        UpdateFailed,
+    )
+}
+
+
+def device_error(
+    endpoint: str,
+    code: str,
+    *,
+    retryable: bool = False,
+    retry_after_s: int | None = None,
+) -> DeviceError:
+    """Return the exception for an error code; unknown codes give DeviceError."""
+    error = DEVICE_ERRORS.get(code, DeviceError)
+    return error(
+        f"{endpoint}: {code}", retryable=retryable, retry_after_s=retry_after_s
+    )

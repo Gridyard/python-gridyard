@@ -56,6 +56,8 @@ class FakeDevice:
         self.lost_responses = 0
         self.slow_responses = 0
         self.slow_response_s = 0.0
+        self.proto_ver = PROTO_VER
+        self.restart_pending = False
         self.session_id: int | None = None
         self._handshake: tuple[int, int, bytes] | None = None
         self._cipher: AESGCM | None = None
@@ -86,6 +88,9 @@ class FakeDevice:
         response = web.Response(body=response_body)
         if new_session:
             response.headers["Set-Cookie"] = f"session={self.session_id}"
+        if self.restart_pending:
+            self.restart_pending = False
+            self._open_session()
         return response
 
     def _open_session(self) -> None:
@@ -95,7 +100,7 @@ class FakeDevice:
 
     def _dispatch(self, endpoint: str, body: bytes) -> bytes:
         if endpoint == "proto-ver":
-            return PROTO_VER
+            return self.proto_ver
         if endpoint == "prov-session":
             return self._session_step(body)
         if self._cipher is None or endpoint not in self.endpoints:

@@ -1,6 +1,9 @@
 """Fixtures: a fake device on a local test server and a client session for it."""
 
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from pathlib import Path
+from typing import Any
 
 import aiohttp
 import pytest
@@ -12,6 +15,12 @@ from .device import FakeDevice
 
 SETUP_CODE = "AAAABBBBCCCC"
 TIMEOUT_S = 0.5
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def load_fixture(name: str) -> dict[str, Any]:
+    """Return a contract example from tests/fixtures as a dict."""
+    return json.loads((FIXTURES / f"{name}.json").read_text(encoding="utf-8"))
 
 
 @pytest.fixture

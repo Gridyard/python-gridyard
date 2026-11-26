@@ -62,7 +62,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"] # pytest uses assert
+"tests/*" = [
+    "PLR2004", # expected values in tests
+    "S101",    # pytest uses assert
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
