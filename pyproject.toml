@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gridyard"
+version = "0.0.1"
+description = "Async Python client for the local API of gridyard devices"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.14"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: AsyncIO",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+# Lower bounds are the pins of Home Assistant 2026.10.4 (homeassistant/package_constraints.txt).
+dependencies = [
+    "aiohttp>=3.14.5",
+    "cryptography>=50.0.1",
+    "protobuf>=7.36.0",
+]
+
+[project.urls]
+Source = "https://github.com/Gridyard/python-gridyard"
+Issues = "https://github.com/Gridyard/python-gridyard/issues"
+
+[dependency-groups]
+dev = [
+    "build==1.6.1",
+    "pytest==9.2.0",
+    "ruff==0.16.9",
+    "twine==7.0.0",
+]
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "COM812", # incompatible with the formatter
+    "CPY001", # the license is in LICENSE, not in file headers
+    "D203",   # incompatible with the formatter
+    "D212",   # incompatible with the formatter
+    "ISC001", # incompatible with the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"] # pytest uses assert
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
