@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gridyard"
-version = "0.0.1"
+version = "0.0.2"
 description = "Async Python client for the local API of gridyard devices"
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.14"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -24,6 +24,9 @@ dependencies = [
     "protobuf>=7.36.0",
 ]
 
+[project.scripts]
+gridyard-check = "gridyard.check:main"
+
 [project.urls]
 Source = "https://github.com/Gridyard/python-gridyard"
 Issues = "https://github.com/Gridyard/python-gridyard/issues"
@@ -32,12 +35,16 @@ Issues = "https://github.com/Gridyard/python-gridyard/issues"
 dev = [
     "build==1.6.1",
     "pytest==9.2.0",
+    "pytest-aiohttp==1.1.1",
+    "pytest-asyncio==1.5.0",
     "ruff==0.16.9",
     "twine==7.0.0",
 ]
 
 [tool.ruff]
 target-version = "py314"
+# Copied from Espressif; kept as close to the source as possible (NOTICE).
+extend-exclude = ["src/gridyard/srp6a.py", "src/gridyard/security2.py", "src/gridyard/proto/*_pb2.py"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -46,12 +53,18 @@ ignore = [
     "COM812", # incompatible with the formatter
     "CPY001", # the license is in LICENSE, not in file headers
     "D203",   # incompatible with the formatter
-    "D212",   # incompatible with the formatter
+    "D213",   # summary on the first line, as in Home Assistant Core
     "ISC001", # incompatible with the formatter
+    "N818",   # error names follow Home Assistant: CannotConnect, InvalidAuth
+    "TC001",  # Home Assistant Core ignores TC001 to TC003
+    "TC002",
+    "TC003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"] # pytest uses assert
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
