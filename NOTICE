@@ -1,0 +1,27 @@
+python-gridyard
+
+This product includes software by Espressif Systems (Shanghai) CO LTD, licensed under
+the Apache License 2.0.
+
+src/gridyard/srp6a.py
+  Source: espressif/idf-extra-components, commit 225a1c974215bdf6eeed990c5f9ffe45f883b171
+  (component espressif/network_provisioning 1.3.1),
+  network_provisioning/tool/esp_prov/security/srp6a.py
+  Changes: bytes_to_long and long_to_bytes are copied from
+  tool/esp_prov/utils/convenience.py instead of imported from esp_prov's utils package.
+
+src/gridyard/security2.py
+  Source: as above, network_provisioning/tool/esp_prov/security/security2.py
+  Changes: imports point to this package (proto, srp6a); str_to_bytes is copied from
+  tool/esp_prov/utils/convenience.py; the esp_prov Security base class, which only
+  stored security_session, is replaced by that assignment.
+
+src/gridyard/proto/constants_pb2.py, sec0_pb2.py, sec1_pb2.py, sec2_pb2.py, session_pb2.py
+  Source: ESP-IDF v6.1, commit fff9895c82d744c7237be8847347bdd1b07c6643,
+  components/protocomm/python/
+  Changes: imports of sibling modules are relative, and each file is added to the private
+  descriptor pool gridyard.proto.POOL instead of the default pool, because the .proto
+  files have no package and their names would collide with other libraries.
+
+src/gridyard/session.py uses the HTTP headers and the session cookie handling of
+network_provisioning/tool/esp_prov/transport/transport_http.py (same source as above).
