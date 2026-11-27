@@ -27,7 +27,7 @@ async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as websess
 | `state()` | `state` | `State` with the latest `Record`; values are `Decimal`, never `float` |
 | `profiles()` | `profiles` | `Catalog`, read page by page |
 | `set_profile(id)` | `profile` | returns once the device restarted with the profile |
-| `set_meter_key(key)` | `meter-key` | returns once the device answers after its restart |
+| `set_meter_key(key)` | `meter-key` | returns once the device restarted |
 
 The client sets up the encrypted session (Security 2) on the first request and again
 after a failed one. It sends the session cookie itself, so the `ClientSession` must use

@@ -249,15 +249,40 @@ async def test_profiles_empty_page(
         await gridyard_client.profiles()
 
 
+NEW_BOOT_ID = "fedcba9876543210"
+
+
+@pytest.fixture
+def device_state(device: FakeDevice) -> dict[str, Any]:
+    """Serve state from the contract example; changes to the dict show."""
+    state = load_fixture("state.response")
+    device.endpoints["state"] = lambda _data: json.dumps(state).encode()
+    return state
+
+
+def restart(device: FakeDevice, device_state: dict[str, Any]) -> None:
+    """Let the device restart after this answer, with a new boot_id."""
+    device.restart_pending = True
+    device_state["state"]["boot_id"] = NEW_BOOT_ID
+
+
+def sent(device: FakeDevice, endpoint: str) -> int:
+    """Return how often the device got a request for endpoint."""
+    return [name for name, _ in device.applied].count(endpoint)
+
+
 @pytest.mark.usefixtures("fast_restart")
 async def test_set_profile(
-    gridyard_client: GridyardClient, device: FakeDevice, device_info: dict[str, Any]
+    gridyard_client: GridyardClient,
+    device: FakeDevice,
+    device_info: dict[str, Any],
+    device_state: dict[str, Any],
 ) -> None:
-    """Test set_profile returns once device-info shows the profile after the restart."""
+    """Test set_profile returns once the device restarted with the profile."""
 
     def profile(data: bytes) -> bytes:
         device_info["profile"] = data.decode()
-        device.restart_pending = True
+        restart(device, device_state)
         return b"OK"
 
     device.endpoints["profile"] = profile
@@ -269,35 +294,88 @@ async def test_set_profile(
 
 
 @pytest.mark.usefixtures("fast_restart")
-async def test_set_profile_lost_response(
-    gridyard_client: GridyardClient, device: FakeDevice, device_info: dict[str, Any]
+async def test_set_profile_waits_for_restart(
+    gridyard_client: GridyardClient,
+    device: FakeDevice,
+    device_info: dict[str, Any],
+    device_state: dict[str, Any],
 ) -> None:
-    """Test a lost response is checked in device-info, not sent again."""
+    """Test set_profile waits for the restart even if device-info is early."""
+    state_endpoint = device.endpoints["state"]
+    polls_after_profile = 0
+
+    def state(data: bytes) -> bytes:
+        nonlocal polls_after_profile
+        if device_info["profile"] == "iec-apator-12ec3":
+            polls_after_profile += 1
+        if polls_after_profile == 3:
+            restart(device, device_state)
+        return state_endpoint(data)
 
     def profile(data: bytes) -> bytes:
         device_info["profile"] = data.decode()
         return b"OK"
 
+    device.endpoints["state"] = state
     device.endpoints["profile"] = profile
-    await gridyard_client.connect()
-    device.lost_responses = 1
 
     await gridyard_client.set_profile("iec-apator-12ec3")
 
-    assert [name for name, _ in device.applied].count("profile") == 1
+    assert polls_after_profile >= 3
 
 
-@pytest.mark.usefixtures("fast_restart", "device_info")
-async def test_set_profile_not_applied(
+@pytest.mark.usefixtures("fast_restart")
+async def test_set_profile_lost_response(
+    gridyard_client: GridyardClient,
+    device: FakeDevice,
+    device_info: dict[str, Any],
+    device_state: dict[str, Any],
+) -> None:
+    """Test a lost answer is not sent again; the restart shows the profile took."""
+
+    def profile(data: bytes) -> bytes:
+        device_info["profile"] = data.decode()
+        device.lost_responses = 1
+        restart(device, device_state)
+        return b"OK"
+
+    device.endpoints["profile"] = profile
+
+    await gridyard_client.set_profile("iec-apator-12ec3")
+
+    assert sent(device, "profile") == 1
+
+
+@pytest.mark.usefixtures("fast_restart", "device_info", "device_state")
+async def test_set_profile_no_restart(
     gridyard_client: GridyardClient, device: FakeDevice
 ) -> None:
-    """Test set_profile fails when device-info never shows the profile."""
+    """Test set_profile fails when the device does not restart."""
     device.endpoints["profile"] = lambda _data: b"OK"
 
-    with pytest.raises(GridyardError, match="not reached"):
+    with pytest.raises(GridyardError, match="did not restart"):
         await gridyard_client.set_profile("iec-apator-12ec3")
 
 
+@pytest.mark.usefixtures("fast_restart", "device_info")
+async def test_set_profile_restarted_without_profile(
+    gridyard_client: GridyardClient,
+    device: FakeDevice,
+    device_state: dict[str, Any],
+) -> None:
+    """Test set_profile fails when the device restarts with another profile."""
+
+    def profile(_data: bytes) -> bytes:
+        restart(device, device_state)
+        return b"OK"
+
+    device.endpoints["profile"] = profile
+
+    with pytest.raises(GridyardError, match="restarted with sml-ebz-dd3"):
+        await gridyard_client.set_profile("iec-apator-12ec3")
+
+
+@pytest.mark.usefixtures("device_state")
 async def test_set_profile_unknown(
     gridyard_client: GridyardClient, device: FakeDevice
 ) -> None:
@@ -309,14 +387,19 @@ async def test_set_profile_unknown(
 
 
 @pytest.mark.usefixtures("fast_restart", "device_info")
+@pytest.mark.parametrize("lost", [False, True], ids=["answered", "answer-lost"])
 async def test_set_meter_key(
-    gridyard_client: GridyardClient, device: FakeDevice
+    gridyard_client: GridyardClient,
+    device: FakeDevice,
+    device_state: dict[str, Any],
+    lost: bool,  # noqa: FBT001
 ) -> None:
-    """Test set_meter_key returns once the device answers after the restart."""
-    key = "00112233445566778899aabbccddeeff"
+    """Test set_meter_key returns after the restart, also when the answer got lost."""
+    key = "00112233445566778899AABBCCDDEEFF"
 
     def meter_key(_data: bytes) -> bytes:
-        device.restart_pending = True
+        device.lost_responses = int(lost)
+        restart(device, device_state)
         return b"OK"
 
     device.endpoints["meter-key"] = meter_key
@@ -324,6 +407,7 @@ async def test_set_meter_key(
     await gridyard_client.set_meter_key(key)
 
     assert ("meter-key", key.encode()) in device.applied
+    assert sent(device, "meter-key") == 1
 
 
 async def test_error_response(

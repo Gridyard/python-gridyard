@@ -3,7 +3,6 @@
 import asyncio
 import contextlib
 import json
-from collections.abc import Callable
 from typing import Any
 
 import aiohttp
@@ -20,8 +19,8 @@ from .models import Catalog, DeviceInfo, Profile, State
 from .session import REQUEST_TIMEOUT_S, DeviceSession
 
 API = 1
-# The device restarts 1 s after profile or meter-key; the client then reads
-# device-info every 2 s for at most 60 s (contract, profile and meter-key).
+# The device restarts 1 s after profile or meter-key; the client then polls every
+# 2 s for at most 60 s (contract, profile and meter-key).
 RESTART_POLL_INTERVAL_S = 2.0
 RESTART_TIMEOUT_S = 60.0
 # A catalog that changes while it is read is read again from the start.
@@ -71,23 +70,39 @@ class GridyardClient:
         raise GridyardError(msg)
 
     async def set_profile(self, profile_id: str) -> None:
-        """Select the meter profile and wait until the device has restarted with it.
-
-        A lost response is not repeated: the device may have applied the profile,
-        and device-info shows whether it did.
-        """
-        with contextlib.suppress(SessionLost):
-            await self._text("profile", profile_id)
-        await self._wait_for_device(lambda info: info.profile_id == profile_id)
+        """Select the meter profile; return once the device restarted with it."""
+        info = await self._send_and_wait_for_restart("profile", profile_id)
+        if info.profile_id != profile_id:
+            msg = f"profile: device restarted with {info.profile_id}, not {profile_id}"
+            raise GridyardError(msg)
 
     async def set_meter_key(self, key: str) -> None:
-        """Set the meter key (32 hex characters) and wait until the device answers.
+        """Set the meter key (32 hex characters); return once the device restarted."""
+        await self._send_and_wait_for_restart("meter-key", key)
 
-        The key is not shown by the device, so a lost response raises SessionLost;
-        sending the same key again is harmless.
+    async def _send_and_wait_for_restart(self, endpoint: str, value: str) -> DeviceInfo:
+        """Send a value, wait for the restart it causes and return device-info after it.
+
+        The device restarts 1 s after its answer. A new boot_id in state shows the
+        restart; device-info answers before it would still show the old state. A
+        lost answer is not sent again, since the device may have taken the value;
+        the restart shows that it did.
         """
-        await self._text("meter-key", key)
-        await self._wait_for_device(lambda _info: True)
+        boot_id = (await self.state()).boot_id
+        with contextlib.suppress(SessionLost):
+            await self._text(endpoint, value)
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + RESTART_TIMEOUT_S
+        while loop.time() < deadline:
+            await asyncio.sleep(RESTART_POLL_INTERVAL_S)
+            try:
+                state = await self.state()
+            except CannotConnect, SessionLost:
+                continue
+            if state.boot_id != boot_id:
+                return await self.device_info()
+        msg = f"{endpoint}: device did not restart within {RESTART_TIMEOUT_S} s"
+        raise GridyardError(msg)
 
     async def _read_catalog(self) -> Catalog | None:
         """Read all pages; None if the catalog changed in between."""
@@ -109,21 +124,6 @@ class GridyardClient:
             if not entries:
                 msg = f"profiles: empty page at offset {len(profiles)} of {total}"
                 raise GridyardError(msg)
-
-    async def _wait_for_device(self, done: Callable[[DeviceInfo], bool]) -> None:
-        """Read device-info until done() holds; the device is away while it restarts."""
-        loop = asyncio.get_running_loop()
-        deadline = loop.time() + RESTART_TIMEOUT_S
-        while loop.time() < deadline:
-            await asyncio.sleep(RESTART_POLL_INTERVAL_S)
-            try:
-                info = await self.device_info()
-            except CannotConnect, SessionLost:
-                continue
-            if done(info):
-                return
-        msg = f"device-info: expected state not reached within {RESTART_TIMEOUT_S} s"
-        raise GridyardError(msg)
 
     async def _json(self, endpoint: str, request: dict[str, Any]) -> dict[str, Any]:
         """Send a JSON request and return the response, or raise its error."""
