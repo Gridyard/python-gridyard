@@ -11,11 +11,13 @@ from aiohttp.test_utils import TestServer
 
 from gridyard import (
     ApiUnsupported,
+    AuthFailed,
     GridyardClient,
     GridyardError,
     ProfileUnknown,
     Quality,
     UpdateFailed,
+    UpdateRejected,
     Value,
     client,
 )
@@ -44,6 +46,7 @@ def fast_restart(monkeypatch: pytest.MonkeyPatch) -> None:
     """Poll device-info every 10 ms for at most 0.5 s after a restart."""
     monkeypatch.setattr(client, "RESTART_POLL_INTERVAL_S", 0.01)
     monkeypatch.setattr(client, "RESTART_TIMEOUT_S", 0.5)
+    monkeypatch.setattr(client, "UPDATE_CONFIRM_TIMEOUT_S", 0.5)
 
 
 @pytest.fixture
@@ -517,3 +520,128 @@ async def test_requests_carry_api(
     await gridyard_client.device_info()
 
     assert device.applied == [("device-info", b'{"api":1}')]
+
+
+IMAGE = bytes(range(256)) * 200
+NEW_FIRMWARE = "v0.6.0"
+
+
+def set_update_axis(
+    device_state: dict[str, Any], state: str, error: str | None
+) -> None:
+    """Set the update axis of the served state."""
+    device_state["state"]["axes"]["update"] = {
+        "state": state,
+        "since_ms": 0,
+        "error": error,
+    }
+
+
+@pytest.fixture
+def update_device(device: FakeDevice) -> FakeDevice:
+    """Return the fake device with update-begin and POST /update."""
+    device.endpoints["update-begin"] = device.update_begin
+    return device
+
+
+@pytest.mark.usefixtures("fast_restart")
+async def test_update(
+    gridyard_client: GridyardClient,
+    update_device: FakeDevice,
+    device_state: dict[str, Any],
+) -> None:
+    """Test offer, upload in blocks and confirmation after the trial boot."""
+    state_endpoint = update_device.endpoints["state"]
+    trial_polls = 0
+
+    def installed(version: str) -> None:
+        restart(update_device, device_state)
+        device_state["state"]["firmware"] = version
+        set_update_axis(device_state, "trial", None)
+
+    def state(data: bytes) -> bytes:
+        nonlocal trial_polls
+        if device_state["state"]["axes"]["update"]["state"] == "trial":
+            trial_polls += 1
+        if trial_polls == 2:
+            set_update_axis(device_state, "idle", None)
+        return state_endpoint(data)
+
+    update_device.on_update = installed
+    update_device.endpoints["state"] = state
+    progress: list[tuple[int, int]] = []
+
+    await gridyard_client.update(
+        NEW_FIRMWARE, IMAGE, lambda sent, total: progress.append((sent, total))
+    )
+
+    assert update_device.received_image == IMAGE
+    assert update_device.update_headers["Content-Length"] == str(len(IMAGE))
+    assert "Transfer-Encoding" not in update_device.update_headers
+    assert progress[-1] == (len(IMAGE), len(IMAGE))
+    assert [sent for sent, _ in progress] == sorted(sent for sent, _ in progress)
+    assert trial_polls >= 2
+
+
+@pytest.mark.usefixtures("fast_restart")
+async def test_update_falls_back(
+    gridyard_client: GridyardClient,
+    update_device: FakeDevice,
+    device_state: dict[str, Any],
+) -> None:
+    """Test a failed trial boot raises UpdateFailed."""
+
+    def fell_back(_version: str) -> None:
+        restart(update_device, device_state)
+        set_update_axis(device_state, "failed", "UPDATE_FAILED")
+
+    update_device.on_update = fell_back
+
+    with pytest.raises(UpdateFailed, match=r"fell back to v0\.5\.0"):
+        await gridyard_client.update(NEW_FIRMWARE, IMAGE)
+
+
+@pytest.mark.usefixtures("fast_restart", "device_state")
+async def test_update_not_confirmed(
+    gridyard_client: GridyardClient, update_device: FakeDevice
+) -> None:
+    """Test an update that the device never confirms."""
+    with pytest.raises(GridyardError, match="not confirmed"):
+        await gridyard_client.update(NEW_FIRMWARE, IMAGE)
+
+    assert update_device.received_image == IMAGE
+
+
+@pytest.mark.usefixtures("device_state")
+async def test_update_offer_rejected(
+    gridyard_client: GridyardClient, update_device: FakeDevice
+) -> None:
+    """Test a rejected offer sends no image."""
+    update_device.endpoints["update-begin"] = answer(
+        {
+            "api": 1,
+            "error": "UPDATE_REJECTED",
+            "retryable": False,
+            "retry_after_s": None,
+        }
+    )
+
+    with pytest.raises(UpdateRejected):
+        await gridyard_client.update(NEW_FIRMWARE, IMAGE)
+
+    assert update_device.received_image == b""
+
+
+@pytest.mark.usefixtures("device_state")
+async def test_update_wrong_token(
+    gridyard_client: GridyardClient, update_device: FakeDevice
+) -> None:
+    """Test the upload with a token the device did not hand out."""
+    update_device.endpoints["update-begin"] = answer(
+        {"api": 1, "token": "0" * 32, "expires_s": 60}
+    )
+
+    with pytest.raises(AuthFailed):
+        await gridyard_client.update(NEW_FIRMWARE, IMAGE)
+
+    assert update_device.received_image == b""

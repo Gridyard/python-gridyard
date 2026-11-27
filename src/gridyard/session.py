@@ -7,6 +7,7 @@ which the client sends with every later request.
 
 import asyncio
 import json
+from collections.abc import AsyncIterable
 from http import HTTPStatus
 
 import aiohttp
@@ -109,6 +110,29 @@ class DeviceSession:
             except _TransportError as err:
                 msg = f"{endpoint}: session lost again after setting it up anew"
                 raise SessionLost(msg) from err
+
+    async def post_plain(
+        self,
+        endpoint: str,
+        body: AsyncIterable[bytes],
+        headers: dict[str, str],
+        time_limit_s: float,
+    ) -> tuple[int, bytes]:
+        """POST to an endpoint outside protocomm (update) and return status and body.
+
+        Holds the session lock, so no encrypted request runs during the upload.
+        """
+        url = self._base_url / endpoint
+        client_timeout = aiohttp.ClientTimeout(total=time_limit_s)
+        async with self._lock:
+            try:
+                async with self._websession.post(
+                    url, data=body, headers=headers, timeout=client_timeout
+                ) as response:
+                    return response.status, await response.read()
+            except (aiohttp.ClientError, TimeoutError) as err:
+                msg = f"{endpoint}: {type(err).__name__}: {err}"
+                raise CannotConnect(msg) from err
 
     async def _connect(self) -> None:
         self._cookie = None

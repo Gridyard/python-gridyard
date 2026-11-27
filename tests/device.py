@@ -14,6 +14,7 @@ Follows ESP-IDF v6.1:
 
 import asyncio
 import hashlib
+import json
 import os
 import random
 from collections.abc import Callable
@@ -58,6 +59,12 @@ class FakeDevice:
         self.slow_response_s = 0.0
         self.proto_ver = PROTO_VER
         self.restart_pending = False
+        # Update: offer from update-begin, single-use token, what POST /update got.
+        self.update_offer: dict | None = None
+        self.update_token = ""
+        self.update_headers: dict[str, str] = {}
+        self.received_image = b""
+        self.on_update: Callable[[str], None] | None = None
         self.session_id: int | None = None
         self._handshake: tuple[int, int, bytes] | None = None
         self._cipher: AESGCM | None = None
@@ -66,6 +73,7 @@ class FakeDevice:
     def app(self) -> web.Application:
         """Return the HTTP server of the device."""
         app = web.Application()
+        app.router.add_post("/update", self._handle_update)
         app.router.add_post("/{endpoint}", self._handle)
         return app
 
@@ -92,6 +100,29 @@ class FakeDevice:
             self.restart_pending = False
             self._open_session()
         return response
+
+    def update_begin(self, data: bytes) -> bytes:
+        """Endpoint update-begin: accept the offer and hand out a token."""
+        offer = json.loads(data)
+        self.update_offer = {key: offer[key] for key in ("version", "size", "sha256")}
+        self.update_token = os.urandom(16).hex()
+        response = {"api": 1, "token": self.update_token, "expires_s": 60}
+        return json.dumps(response).encode()
+
+    async def _handle_update(self, request: web.Request) -> web.Response:
+        """POST /update outside protocomm: token, size and SHA-256 as in FW-10."""
+        self.update_headers = dict(request.headers)
+        image = await request.read()
+        offer, self.update_offer = self.update_offer, None
+        if offer is None or request.headers.get("X-Update-Token") != self.update_token:
+            return _error_response(403, "AUTH_FAILED")
+        digest = hashlib.sha256(image).hexdigest()
+        if len(image) != offer["size"] or digest != offer["sha256"]:
+            return _error_response(400, "UPDATE_REJECTED")
+        self.received_image = image
+        if self.on_update is not None:
+            self.on_update(offer["version"])
+        return web.json_response({"api": 1})
 
     def _open_session(self) -> None:
         self.session_id = random.getrandbits(32)
@@ -178,3 +209,8 @@ def _close_without_response(request: web.Request) -> web.StreamResponse:
     if request.transport is not None:
         request.transport.close()
     return web.Response()
+
+
+def _error_response(status: int, code: str) -> web.Response:
+    error = {"api": 1, "error": code, "retryable": False, "retry_after_s": None}
+    return web.json_response(error, status=status)
