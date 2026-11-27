@@ -1,0 +1,10 @@
+{
+  "api": 1,
+  "device_id": "sm-0123456789ab",
+  "fw": "v0.5.0",
+  "mode": "local",
+  "catalog": "caf9acc67c01abf6",
+  "profile_count": 86,
+  "profile": "sml-ebz-dd3",
+  "model": "eBZ DD3"
+}

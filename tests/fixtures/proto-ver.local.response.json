@@ -1,0 +1,12 @@
+{
+  "gridyard": {
+    "ver": "1",
+    "cap": []
+  },
+  "prov": {
+    "ver": "netprov-v1.2",
+    "sec_ver": 2,
+    "sec_patch_ver": 1,
+    "cap": []
+  }
+}

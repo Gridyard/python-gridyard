@@ -1,0 +1,6 @@
+{
+  "api": 1,
+  "error": "UPDATE_FAILED",
+  "retryable": true,
+  "retry_after_s": 30
+}

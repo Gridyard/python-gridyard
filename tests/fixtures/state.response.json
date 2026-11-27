@@ -1,0 +1,158 @@
+{
+  "api": 1,
+  "record": {
+    "schema": 1,
+    "device_id": "sm-0123456789ab",
+    "records": [
+      {
+        "boot_id": "0123456789abcdef",
+        "uptime_ms": 86400123,
+        "observed_at": null,
+        "time_quality": "unknown",
+        "profile": {
+          "id": "sml-ebz-dd3",
+          "rev": 1,
+          "hash": "41e1a87577e4f3aa"
+        },
+        "quality": "valid",
+        "age_ms": 850,
+        "values": [
+          {
+            "q": "energy_import",
+            "m": "123456789",
+            "e": -1
+          },
+          {
+            "q": "energy_import",
+            "t": 1,
+            "m": "100000000",
+            "e": -1
+          },
+          {
+            "q": "energy_import",
+            "t": 2,
+            "m": "23456789",
+            "e": -1
+          },
+          {
+            "q": "energy_export",
+            "m": "4567891",
+            "e": -1
+          },
+          {
+            "q": "power",
+            "m": "-4321",
+            "e": -1
+          },
+          {
+            "q": "power",
+            "p": 1,
+            "m": "-1500",
+            "e": -1
+          },
+          {
+            "q": "power",
+            "p": 2,
+            "m": "-1400",
+            "e": -1
+          },
+          {
+            "q": "power",
+            "p": 3,
+            "m": "-1421",
+            "e": -1
+          },
+          {
+            "q": "voltage",
+            "p": 1,
+            "m": "2301",
+            "e": -1
+          },
+          {
+            "q": "voltage",
+            "p": 2,
+            "m": "2298",
+            "e": -1
+          },
+          {
+            "q": "voltage",
+            "p": 3,
+            "m": "2305",
+            "e": -1
+          }
+        ]
+      }
+    ]
+  },
+  "state": {
+    "schema": 1,
+    "device_id": "sm-0123456789ab",
+    "boot_id": "0123456789abcdef",
+    "uptime_ms": 86400123,
+    "firmware": "v0.5.0",
+    "profile": {
+      "id": "sml-ebz-dd3",
+      "rev": 1,
+      "hash": "41e1a87577e4f3aa"
+    },
+    "catalog": "caf9acc67c01abf6",
+    "axes": {
+      "wifi": {
+        "state": "connected",
+        "since_ms": 4100,
+        "error": null
+      },
+      "registration": {
+        "state": "unknown",
+        "since_ms": 0,
+        "error": null
+      },
+      "mqtt": {
+        "state": "disconnected",
+        "since_ms": 0,
+        "error": null
+      },
+      "meter": {
+        "state": "valid",
+        "since_ms": 9200,
+        "error": null
+      },
+      "provisioning": {
+        "state": "closed",
+        "since_ms": 0,
+        "error": null
+      },
+      "update": {
+        "state": "idle",
+        "since_ms": 0,
+        "error": null
+      },
+      "storage": {
+        "state": "ok",
+        "since_ms": 0,
+        "error": null
+      }
+    },
+    "diag": {
+      "reset_reason": "poweron",
+      "heap_free": 186508,
+      "heap_min": 184440,
+      "heap_largest": 167936,
+      "rssi": -61,
+      "meter": {
+        "bytes": 1234567,
+        "line_errors": 0,
+        "overflows": 0,
+        "frames": 86390,
+        "frame_errors": 3,
+        "implausible": 0,
+        "no_response": 0
+      },
+      "spool_pending": 0,
+      "lost": 0,
+      "rejected": 0,
+      "cert_expires": null
+    },
+    "mode": "local"
+  }
+}

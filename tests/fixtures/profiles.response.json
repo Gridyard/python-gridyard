@@ -1,0 +1,41 @@
+{
+  "api": 1,
+  "catalog": "caf9acc67c01abf6",
+  "total": 86,
+  "offset": 0,
+  "profiles": [
+    {
+      "id": "dlms-iskra-am550",
+      "model": "Iskra AM550",
+      "rev": 1,
+      "encrypted": true
+    },
+    {
+      "id": "dlms-siemens-im350",
+      "model": "Siemens IM350",
+      "rev": 1,
+      "encrypted": true
+    },
+    {
+      "id": "dlms-siemens-im351",
+      "model": "Siemens IM351",
+      "rev": 1,
+      "encrypted": true
+    },
+    {
+      "id": "iec-apator-12ec3",
+      "model": "Apator 12EC3",
+      "rev": 1
+    },
+    {
+      "id": "iec-apator-12ec3g",
+      "model": "Apator 12EC3G",
+      "rev": 1
+    },
+    {
+      "id": "iec-easymeter-q1d",
+      "model": "EasyMeter Q1D",
+      "rev": 1
+    }
+  ]
+}
