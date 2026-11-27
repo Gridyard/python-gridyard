@@ -1,5 +1,8 @@
 """Errors raised by gridyard."""
 
+import contextlib
+from collections.abc import Iterator
+
 
 class GridyardError(Exception):
     """Base class for gridyard errors."""
@@ -103,3 +106,13 @@ def device_error(
     return error(
         f"{endpoint}: {code}", retryable=retryable, retry_after_s=retry_after_s
     )
+
+
+@contextlib.contextmanager
+def invalid_response(endpoint: str) -> Iterator[None]:
+    """Turn a malformed response (missing field, wrong type) into GridyardError."""
+    try:
+        yield
+    except (KeyError, TypeError, ValueError, AttributeError, ArithmeticError) as err:
+        msg = f"{endpoint}: unexpected response: {err!r}"
+        raise GridyardError(msg) from err

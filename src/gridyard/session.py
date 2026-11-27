@@ -20,6 +20,7 @@ from .exceptions import (
     GridyardError,
     InvalidAuth,
     SessionLost,
+    invalid_response,
 )
 from .security2 import Security2
 
@@ -190,19 +191,17 @@ def _check_versions(response: bytes) -> int:
 
     Firmware before the local API contract has no gridyard entry and no local API.
     """
-    try:
+    with invalid_response("proto-ver"):
         versions = json.loads(response)
-    except ValueError as err:
-        msg = f"proto-ver: response is not JSON: {response[:64]!r}"
-        raise GridyardError(msg) from err
-    api_version = versions.get("gridyard", {}).get("ver")
+        api_version = versions.get("gridyard", {}).get("ver")
+        security_scheme = versions["prov"]["sec_ver"]
+        patch_version = versions["prov"]["sec_patch_ver"]
     if api_version != API_VERSION:
         msg = f"proto-ver: local API {api_version}, expected {API_VERSION}"
         raise ApiUnsupported(msg)
-    prov = versions["prov"]
-    if prov["sec_ver"] != SECURITY_SCHEME:
+    if security_scheme != SECURITY_SCHEME:
         msg = (
-            f"device uses security scheme {prov['sec_ver']}, expected {SECURITY_SCHEME}"
+            f"device uses security scheme {security_scheme}, expected {SECURITY_SCHEME}"
         )
         raise GridyardError(msg)
-    return prov["sec_patch_ver"]
+    return patch_version

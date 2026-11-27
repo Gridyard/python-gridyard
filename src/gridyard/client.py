@@ -3,7 +3,7 @@
 import asyncio
 import contextlib
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from typing import Any
 
 import aiohttp
@@ -14,6 +14,7 @@ from .exceptions import (
     GridyardError,
     SessionLost,
     device_error,
+    invalid_response,
 )
 from .models import Catalog, DeviceInfo, Profile, State
 from .session import REQUEST_TIMEOUT_S, DeviceSession
@@ -51,13 +52,13 @@ class GridyardClient:
     async def device_info(self) -> DeviceInfo:
         """Read device-info."""
         response = await self._json("device-info", {})
-        with _parsing("device-info"):
+        with invalid_response("device-info"):
             return DeviceInfo.from_json(response)
 
     async def state(self) -> State:
         """Read the latest record and the device state."""
         response = await self._json("state", {})
-        with _parsing("state"):
+        with invalid_response("state"):
             return State.from_json(response)
 
     async def profiles(self) -> Catalog:
@@ -94,7 +95,7 @@ class GridyardClient:
         profiles: list[Profile] = []
         while True:
             page = await self._json("profiles", {"offset": len(profiles)})
-            with _parsing("profiles"):
+            with invalid_response("profiles"):
                 page_catalog = page["catalog"]
                 total = page["total"]
                 entries = [Profile.from_json(entry) for entry in page["profiles"]]
@@ -154,13 +155,3 @@ class GridyardClient:
         answer = raw.decode(errors="replace").strip()
         if answer != "OK":
             raise device_error(endpoint, answer)
-
-
-@contextlib.contextmanager
-def _parsing(endpoint: str) -> Iterator[None]:
-    """Turn a missing field or a wrong type in a response into GridyardError."""
-    try:
-        yield
-    except (KeyError, TypeError, ValueError, ArithmeticError) as err:
-        msg = f"{endpoint}: unexpected response: {err!r}"
-        raise GridyardError(msg) from err

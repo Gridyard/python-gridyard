@@ -5,7 +5,13 @@ from collections.abc import Callable
 import aiohttp
 import pytest
 
-from gridyard import CannotConnect, DeviceSession, InvalidAuth, SessionLost
+from gridyard import (
+    CannotConnect,
+    DeviceSession,
+    GridyardError,
+    InvalidAuth,
+    SessionLost,
+)
 
 from .conftest import SETUP_CODE, TIMEOUT_S
 from .device import FakeDevice
@@ -115,3 +121,23 @@ async def test_cookie_jar_rejected() -> None:
     async with aiohttp.ClientSession() as websession:
         with pytest.raises(TypeError, match="DummyCookieJar"):
             DeviceSession(websession, "127.0.0.1", SETUP_CODE)
+
+
+@pytest.mark.parametrize(
+    "proto_ver",
+    [
+        b"not json",
+        b"[]",
+        b'{"gridyard":{"ver":"1"}}',
+        b'{"gridyard":{"ver":"1"},"prov":{}}',
+    ],
+    ids=["not-json", "not-object", "no-prov", "no-sec-ver"],
+)
+async def test_malformed_proto_ver(
+    device: FakeDevice, make_session: Callable[..., DeviceSession], proto_ver: bytes
+) -> None:
+    """Test a malformed proto-ver response is a GridyardError."""
+    device.proto_ver = proto_ver
+
+    with pytest.raises(GridyardError, match="proto-ver"):
+        await make_session().connect()
