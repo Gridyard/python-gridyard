@@ -183,8 +183,13 @@ class State:
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> State:
-        """Parse a state response; without a record, record is None."""
-        records = data["record"]["records"]
+        """Parse a state response; without a live record, record is None.
+
+        The device sends "record": null as long as it has no live record, for
+        example without profile or right after the start.
+        """
+        live = data["record"]
+        records = live["records"] if live is not None else []
         state = data["state"]
         return cls(
             device_id=state["device_id"],

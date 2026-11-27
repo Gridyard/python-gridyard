@@ -183,6 +183,32 @@ async def test_state_ignores_unknown(
     assert state.axes["new_axis"].state == "on"
 
 
+async def test_state_without_record(
+    gridyard_client: GridyardClient, device: FakeDevice
+) -> None:
+    """Test "record": null, as without profile or right after the start."""
+    response = load_fixture("state.response")
+    response["record"] = None
+    device.endpoints["state"] = answer(response)
+
+    state = await gridyard_client.state()
+
+    assert state.record is None
+    assert state.boot_id == "0123456789abcdef"
+
+
+async def test_state_without_state(
+    gridyard_client: GridyardClient, device: FakeDevice
+) -> None:
+    """Test a response without the state part stays an error."""
+    response = load_fixture("state.response")
+    del response["state"]
+    device.endpoints["state"] = answer(response)
+
+    with pytest.raises(GridyardError, match="unexpected response"):
+        await gridyard_client.state()
+
+
 def test_value_is_exact() -> None:
     """Test m * 10^e keeps all digits, which a float would not."""
     value = Value.from_json({"q": "energy_import", "m": "123456789012345678", "e": -3})
@@ -291,6 +317,29 @@ async def test_set_profile(
 
     assert ("profile", b"iec-apator-12ec3") in device.applied
     assert (await gridyard_client.device_info()).profile_id == "iec-apator-12ec3"
+
+
+@pytest.mark.usefixtures("fast_restart")
+async def test_set_profile_fresh_device(
+    gridyard_client: GridyardClient,
+    device: FakeDevice,
+    device_info: dict[str, Any],
+    device_state: dict[str, Any],
+) -> None:
+    """Test a device without profile and without live record gets one."""
+    device_info["profile"] = ""
+    device_state["record"] = None
+
+    def profile(data: bytes) -> bytes:
+        device_info["profile"] = data.decode()
+        restart(device, device_state)
+        return b"OK"
+
+    device.endpoints["profile"] = profile
+
+    await gridyard_client.set_profile("iec-apator-12ec3")
+
+    assert sent(device, "profile") == 1
 
 
 @pytest.mark.usefixtures("fast_restart")
