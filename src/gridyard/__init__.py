@@ -1,6 +1,6 @@
 """Async client for the local API of gridyard devices."""
 
-from .client import GridyardClient
+from .client import API, GridyardClient
 from .exceptions import (
     ApiUnsupported,
     AuthFailed,
@@ -15,11 +15,13 @@ from .exceptions import (
     UpdateFailed,
     UpdateRejected,
 )
+from .firmware import MANIFEST_URL, fetch_image, fetch_release
 from .models import (
     UNITS,
     Axis,
     Catalog,
     DeviceInfo,
+    FirmwareRelease,
     Profile,
     Quality,
     Record,
@@ -29,6 +31,8 @@ from .models import (
 from .session import DeviceSession
 
 __all__ = [
+    "API",
+    "MANIFEST_URL",
     "UNITS",
     "ApiUnsupported",
     "AuthFailed",
@@ -39,6 +43,7 @@ __all__ = [
     "DeviceError",
     "DeviceInfo",
     "DeviceSession",
+    "FirmwareRelease",
     "GridyardClient",
     "GridyardError",
     "InvalidAuth",
@@ -52,4 +57,6 @@ __all__ = [
     "UpdateFailed",
     "UpdateRejected",
     "Value",
+    "fetch_image",
+    "fetch_release",
 ]

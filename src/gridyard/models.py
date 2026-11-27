@@ -202,3 +202,27 @@ class State:
             axes={name: Axis.from_json(axis) for name, axis in state["axes"].items()},
             diag=state["diag"],
         )
+
+
+@dataclass(frozen=True, slots=True)
+class FirmwareRelease:
+    """Release from manifest.json of the firmware repository."""
+
+    version: str
+    url: str
+    sha256: str
+    size: int
+    min_api: int
+    notes: str
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> FirmwareRelease:
+        """Parse manifest.json; the SHA-256 value is compared in lower case."""
+        return cls(
+            version=data["version"],
+            url=data["url"],
+            sha256=data["sha256"].lower(),
+            size=data["size"],
+            min_api=data["min_api"],
+            notes=data.get("notes", ""),
+        )
