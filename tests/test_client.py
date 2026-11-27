@@ -12,11 +12,13 @@ from aiohttp.test_utils import TestServer
 from gridyard import (
     ApiUnsupported,
     AuthFailed,
+    DeviceError,
     GridyardClient,
     GridyardError,
     ProfileUnknown,
     Quality,
     UpdateFailed,
+    UpdateFellBack,
     UpdateRejected,
     Value,
     client,
@@ -597,8 +599,27 @@ async def test_update_falls_back(
 
     update_device.on_update = fell_back
 
-    with pytest.raises(UpdateFailed, match=r"fell back to v0\.5\.0"):
+    with pytest.raises(UpdateFellBack, match=r"fell back to v0\.5\.0") as raised:
         await gridyard_client.update(NEW_FIRMWARE, IMAGE)
+
+    assert raised.value.firmware == "v0.5.0"
+    assert not isinstance(raised.value, DeviceError)
+
+
+@pytest.mark.usefixtures("device_state")
+async def test_update_busy(
+    gridyard_client: GridyardClient, update_device: FakeDevice
+) -> None:
+    """Test the device refusing an offer while an update or trial boot runs."""
+    update_device.endpoints["update-begin"] = answer(
+        {"api": 1, "error": "UPDATE_FAILED", "retryable": True, "retry_after_s": 30}
+    )
+
+    with pytest.raises(UpdateFailed) as raised:
+        await gridyard_client.update(NEW_FIRMWARE, IMAGE)
+
+    assert raised.value.retry_after_s == 30
+    assert update_device.received_image == b""
 
 
 @pytest.mark.usefixtures("fast_restart", "device_state")

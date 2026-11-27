@@ -14,7 +14,7 @@ from .exceptions import (
     CannotConnect,
     GridyardError,
     SessionLost,
-    UpdateFailed,
+    UpdateFellBack,
     device_error,
     invalid_response,
 )
@@ -99,7 +99,7 @@ class GridyardClient:
         The image goes to the device only after update-begin accepted version, size
         and SHA-256. on_progress gets bytes sent and total during the upload. After
         the upload the device restarts into a trial boot; it confirms the new
-        version (axis update idle) or falls back (update failed, UpdateFailed).
+        version (axis update idle) or falls back (update failed, UpdateFellBack).
         """
         boot_id = (await self.state()).boot_id
         offer = {
@@ -136,7 +136,7 @@ class GridyardClient:
             update = state.axes["update"]
             if update.state == "failed":
                 msg = f"update: device fell back to {state.firmware} ({update.error})"
-                raise UpdateFailed(msg)
+                raise UpdateFellBack(msg, state.firmware)
             if update.state == "idle" and state.firmware == version:
                 return
         msg = f"update: {version} not confirmed within {UPDATE_CONFIRM_TIMEOUT_S} s"

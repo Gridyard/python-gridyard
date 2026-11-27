@@ -28,7 +28,7 @@ async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as websess
 | `profiles()` | `profiles` | `Catalog`, read page by page |
 | `set_profile(id)` | `profile` | returns once the device restarted with the profile |
 | `set_meter_key(key)` | `meter-key` | returns once the device restarted |
-| `update(version, image, on_progress)` | `update-begin`, `POST /update` | uploads the image; returns once the device confirmed the version after its trial boot, `UpdateFailed` after a fallback |
+| `update(version, image, on_progress)` | `update-begin`, `POST /update` | uploads the image; returns once the device confirmed the version after its trial boot, `UpdateFellBack` after a fallback |
 
 The client sets up the encrypted session (Security 2) on the first request and again
 after a failed one. It sends the session cookie itself, so the `ClientSession` must use

@@ -20,6 +20,15 @@ class SessionLost(GridyardError):
     """The session broke during a request and the request was not completed."""
 
 
+class UpdateFellBack(GridyardError):
+    """The device did not confirm the new firmware and runs the previous one again."""
+
+    def __init__(self, message: str, firmware: str) -> None:
+        """Store the firmware the device runs after the fallback."""
+        super().__init__(message)
+        self.firmware = firmware
+
+
 class DeviceError(GridyardError):
     """The device answered with an error code of the local API contract."""
 

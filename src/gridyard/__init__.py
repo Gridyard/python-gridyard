@@ -13,6 +13,7 @@ from .exceptions import (
     SessionLost,
     StorageFailed,
     UpdateFailed,
+    UpdateFellBack,
     UpdateRejected,
 )
 from .firmware import MANIFEST_URL, fetch_image, fetch_release
@@ -55,6 +56,7 @@ __all__ = [
     "State",
     "StorageFailed",
     "UpdateFailed",
+    "UpdateFellBack",
     "UpdateRejected",
     "Value",
     "fetch_image",
