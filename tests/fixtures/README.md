@@ -1,6 +1,6 @@
 # Test data
 
-Examples from the gridyard local API contract, version `api` 1 (planning repository, commit `f59e62d`,
+Examples from the gridyard local API contract, version `api` 1 (planning repository, commit `e638e7a`,
 `homeassistant/lokale-api/`), unchanged. Values are synthetic.
 
 | File | Endpoint |

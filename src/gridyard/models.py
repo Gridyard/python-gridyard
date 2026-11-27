@@ -58,10 +58,11 @@ class DeviceInfo:
     catalog: str
     profile_count: int
     profile_id: str | None
+    model: str | None
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> DeviceInfo:
-        """Parse a device-info response; an empty profile becomes None."""
+        """Parse a device-info response; an empty profile or model becomes None."""
         return cls(
             device_id=data["device_id"],
             firmware=data["fw"],
@@ -69,6 +70,7 @@ class DeviceInfo:
             catalog=data["catalog"],
             profile_count=data["profile_count"],
             profile_id=data["profile"] or None,
+            model=data.get("model") or None,
         )
 
 

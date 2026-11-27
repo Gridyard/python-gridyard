@@ -102,15 +102,29 @@ async def test_device_info(gridyard_client: GridyardClient) -> None:
     assert info.catalog == "caf9acc67c01abf6"
     assert info.profile_count == 86
     assert info.profile_id == "sml-ebz-dd3"
+    assert info.model == "eBZ DD3"
 
 
 async def test_device_info_without_profile(
     gridyard_client: GridyardClient, device_info: dict[str, Any]
 ) -> None:
-    """Test an empty profile becomes None."""
+    """Test an empty profile and model become None."""
     device_info["profile"] = ""
+    device_info["model"] = ""
 
-    assert (await gridyard_client.device_info()).profile_id is None
+    info = await gridyard_client.device_info()
+
+    assert info.profile_id is None
+    assert info.model is None
+
+
+async def test_device_info_without_model_field(
+    gridyard_client: GridyardClient, device_info: dict[str, Any]
+) -> None:
+    """Test firmware that does not send model yet."""
+    del device_info["model"]
+
+    assert (await gridyard_client.device_info()).model is None
 
 
 async def test_state(gridyard_client: GridyardClient, device: FakeDevice) -> None:
